@@ -10,6 +10,9 @@ import os
 import shutil
 import subprocess
 import time
+import base64
+from io import BytesIO
+from PIL import Image
 
 os.environ["HF_HUB_CACHE"] = "models"
 os.environ["HF_HUB_CACHE_OFFLINE"] = "true"
@@ -26,6 +29,7 @@ from transformers import CLIPImageProcessor
 
 from photomaker import PhotoMakerStableDiffusionXLPipeline
 from gradio_demo.style_template import styles
+
 
 MAX_SEED = np.iinfo(np.int32).max
 STYLE_NAMES = list(styles.keys())
@@ -102,19 +106,20 @@ class Predictor(BasePredictor):
     @torch.inference_mode()
     def predict(
         self,
-        input_image: Path = Input(
-            description="The input image, for example a photo of your face."
-        ),
-        input_image2: Path = Input(
-            description="Additional input image (optional)",
+        input_image: str = Input(
+            description="The input image as a base64-encoded string.",
             default=None
         ),
-        input_image3: Path = Input(
-            description="Additional input image (optional)",
+        input_image2: str = Input(
+            description="Additional input image (optional) as a base64-encoded string.",
             default=None
         ),
-        input_image4: Path = Input(
-            description="Additional input image (optional)",
+        input_image3: str = Input(
+            description="Additional input image (optional) as a base64-encoded string.",
+            default=None
+        ),
+        input_image4: str = Input(
+            description="Additional input image (optional) as a base64-encoded string.",
             default=None
         ),
         prompt: str = Input(
@@ -188,7 +193,8 @@ class Predictor(BasePredictor):
         for maybe_image in [input_image, input_image2, input_image3, input_image4]:
           if maybe_image:
             print(f"Loading image {maybe_image}...")
-            input_id_images.append(load_image(str(maybe_image)))
+            temp_file = decode_base64_image(maybe_image)
+            input_id_images.append(load_image(temp_file))
 
         print(f"Setting seed...")
         generator = torch.Generator(device=self.device).manual_seed(seed)
@@ -237,3 +243,14 @@ class Predictor(BasePredictor):
             clip_input=safety_checker_input.pixel_values.to(torch.float16),
         )
         return image, has_nsfw_concept
+
+
+def decode_base64_image(base64_image):
+    # Decode the base64 string
+    decoded_bytes = base64.b64decode(base64_image)
+    # Load the image from the bytes
+    image = Image.open(BytesIO(decoded_bytes))
+    # Save the image to a temporary file
+    temp_file = "temp_image.png"
+    image.save(temp_file)
+    return temp_file
