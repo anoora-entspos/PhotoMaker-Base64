@@ -194,7 +194,7 @@ class Predictor(BasePredictor):
           if maybe_image:
             print(f"Loading image {maybe_image}...")
             temp_file = decode_base64_image(maybe_image)
-            input_id_images.append(load_image(temp_file))
+            input_id_images.append(temp_file)
 
         print(f"Setting seed...")
         generator = torch.Generator(device=self.device).manual_seed(seed)
